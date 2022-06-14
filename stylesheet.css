@@ -1,0 +1,35 @@
+.app-running-focused {
+  margin-left: 2px;
+  margin-right: 2px;
+  margin-top: 3px;
+  margin-bottom: 3px;
+
+  border-top: 2px solid rgba(204, 204, 204, 1);
+  border-right: 0px hidden;
+  border-bottom: 2px hidden;
+  border-left: 0px hidden;
+}
+
+.app-running-unfocused {
+  margin-left: 2px;
+  margin-right: 2px;
+  margin-top: 3px;
+  margin-bottom: 3px;
+
+  border-top: 2px solid rgba(204, 204, 204, 0);
+  border-right: 0px hidden;
+  border-bottom: 2px hidden;
+  border-left: 0px hidden;
+}
+
+.app-notrunning {
+  margin-left: 2px;
+  margin-right: 2px;
+  margin-top: 3px;
+  margin-bottom: 3px;
+
+  border-top: 2px solid rgba(204, 204, 204, 0);
+  border-right: 0px hidden;
+  border-bottom: 2px hidden;
+  border-left: 0px hidden;
+}
