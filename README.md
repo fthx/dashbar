@@ -1,1 +1,3 @@
-# dashbar
+# DashBar
+
+GNOME Shell extension
