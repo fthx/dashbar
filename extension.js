@@ -11,8 +11,9 @@ const { Clutter, GObject, Meta, Shell, St } = imports.gi;
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
 const AppFavorites = imports.ui.appFavorites;
-const AppMenu = imports.ui.appMenu;//////////////////////
-const PopupMenu = imports.ui.popupMenu;/////////////////////////
+const AppMenu = imports.ui.appMenu;
+const PopupMenu = imports.ui.popupMenu;
+const DND = imports.ui.dnd;
 
 const Gettext = imports.gettext.domain('gnome-shell-extensions');
 const _ = Gettext.gettext;
@@ -20,10 +21,10 @@ const N_ = x => x;
 
 var PLACES_ICON_NAME = 'folder-symbolic';
 var SHOW_DESKTOP_BUTTON_ICON_NAME = 'video-display-symbolic';
-var SHOW_APPS_BUTTON_ICON_NAME = 'view-grid-symbolic';
+var SHOW_APPS_BUTTON_ICON_NAME = 'view-app-grid-symbolic';
 var RUNNING_APP_OPACITY = 255;
-var NOTRUNNING_APP_OPACITY = 111;
-var ICON_SIZE = 20;
+var NOTRUNNING_APP_OPACITY = 124;
+var ICON_SIZE = Main.panel.get_height() - 5;
 
 
 var TaskBar = GObject.registerClass(
@@ -32,6 +33,7 @@ class TaskBar extends PanelMenu.Button {
         super._init();
         this.set_track_hover(false);
         this.set_reactive(false);
+        this.set_can_focus(false);
 
         this._box = new St.BoxLayout({style_class: 'panel-status-menu-box'});
         this._box.set_reactive(true);
@@ -66,6 +68,30 @@ class TaskBarItem extends St.Bin {
         super._init();
         this.set_track_hover(true);
         this.set_reactive(true);
+        this.set_can_focus(true);
+
+        this._delegate = this;
+        this._draggable = DND.makeDraggable(this, {dragActorOpacity: RUNNING_APP_OPACITY});
+        this._draggable.connect('drag-end', this._on_drag_end.bind(this));
+        this._draggable.connect('drag-cancelled', this._on_drag_cancelled.bind(this));
+
+        this._app_id = null;
+    }
+
+    _on_drag_end() {
+        AppFavorites.getAppFavorites().emit('changed');
+    }
+
+    _on_drag_cancelled() {
+        AppFavorites.getAppFavorites().emit('changed');
+    }
+
+    acceptDrop(source) {
+        if (source && source._app_id) {
+            this._index_in_favorites = AppFavorites.getAppFavorites()._getIds().indexOf(this._app_id);
+            AppFavorites.getAppFavorites().moveFavoriteToPos(source._app_id, this._index_in_favorites);
+        }
+        return true;
     }
 });
 
@@ -162,13 +188,8 @@ class Extension {
         }
     }
 
-    _sort_apps(app1, app2) {
-        return app1.get_pids() - app2.get_pids();
-    }
-
     _has_to_be_counted(window) {
-        return window.get_workspace() == global.workspace_manager.get_active_workspace()
-            && [Meta.WindowType.NORMAL, Meta.WindowType.DIALOG].includes(window.get_window_type())
+        return [Meta.WindowType.NORMAL, Meta.WindowType.DIALOG].includes(window.get_window_type())
             && !window.is_override_redirect()
             && !window.is_attached_dialog();
     }
@@ -191,14 +212,49 @@ class Extension {
         }
     }
 
+    _on_taskbar_button_hover(widget) {
+        if (widget.get_hover()) {
+            switch (widget.get_style_class_name()) {
+                case 'app-running-focused':
+                case 'app-running-unfocused':
+                    widget.ease({
+                        duration: 100,
+                        opacity: NOTRUNNING_APP_OPACITY,
+                        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                        onComplete: () => {
+                            widget.ease({
+                                duration: 100,
+                                opacity: RUNNING_APP_OPACITY,
+                                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                            });
+                        },
+                    });
+                    break;
+                case 'app-notrunning':
+                    widget.ease({
+                        duration: 200,
+                        opacity: RUNNING_APP_OPACITY,
+                        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                    });
+                    break;
+            }
+        } else {
+            this._update_taskbar();
+        }
+    }
+
     _activate(widget, event, app) {
         if (event.get_button() == 1) {
-            if (app.get_windows()[0] && app.get_windows().filter(this._has_to_be_counted).length > 1) {
-                app.activate();
-                Main.overview.toggle();
+            let app_windows = app.get_windows();
+            if (app_windows[0] && app_windows.filter(this._has_to_be_counted).length > 1) {
+                if (app_windows[0].has_focus()) {
+                    app.activate_window(app_windows[app_windows.length - 1], global.get_current_time());
+                } else {
+                    app.activate();
+                }
             } else {
-                if (app.get_windows()[0] && app.get_windows()[0].has_focus() && app.get_windows()[0].can_minimize() && !Main.overview.visible) {
-                    app.get_windows()[0].minimize();
+                if (app_windows[0] && app_windows[0].has_focus() && app_windows[0].can_minimize() && !Main.overview.visible) {
+                    app_windows[0].minimize();
                 } else {
                     Main.overview.hide();
                     app.activate();
@@ -224,36 +280,40 @@ class Extension {
     }
 
     _add_taskbar_items() {
+        Main.overview.dash._redisplay();
+
         this._dash_items = Main.overview.dash._dashContainer.get_first_child().get_children();
         this._dash_items.forEach(item => {
-            if (item.get_first_child() && item.get_first_child()._id) {
-                let app_id = item.get_first_child()._id;
-                let app = this._app_system.lookup_heuristic_basename(app_id);
+            if (item.child && item.child.app) {
+                let app_id = item.child._id;
+                let app = item.child.app;
                 let app_icon;
-                if (app) {
-                    app_icon = app.create_icon_texture(ICON_SIZE);
-                } else {
-                    app_icon = new St.Icon({icon_name: 'applications-system-symbolic', style_class: 'system-status-icon'});
-                }
 
                 let taskbar_button = new TaskBarItem();
-                if (app) {
-                    if (app.state == Shell.AppState.STOPPED) {
-                        taskbar_button.set_style_class_name('app-notrunning');
-                        app_icon.set_opacity(NOTRUNNING_APP_OPACITY);
-                    } else {
-                        if (app.get_windows() && app.get_windows().includes(global.display.get_focus_window())) {
-                            taskbar_button.set_style_class_name('app-running-focused');
-                        } else {
-                            taskbar_button.set_style_class_name('app-running-unfocused');
-                        }
-                        app_icon.set_opacity(RUNNING_APP_OPACITY);
-                    }
+                taskbar_button._app_id = app_id;
 
-                    taskbar_button.connect('button-release-event', (widget, event) => this._activate(widget, event, app));
-                }
+                app_icon = app.create_icon_texture(ICON_SIZE);
                 taskbar_button.set_child(app_icon);
+
+                if (app.state == Shell.AppState.STOPPED) {
+                    taskbar_button.set_style_class_name('app-notrunning');
+                    taskbar_button.set_opacity(NOTRUNNING_APP_OPACITY);
+                } else {
+                    if (app.get_windows() && app.get_windows().includes(global.display.get_focus_window())) {
+                        taskbar_button.set_style_class_name('app-running-focused');
+                    } else {
+                        taskbar_button.set_style_class_name('app-running-unfocused');
+                    }
+                    taskbar_button.set_opacity(RUNNING_APP_OPACITY);
+                }
+
+                taskbar_button.connect('button-release-event', (widget, event) => this._activate(widget, event, app));
+                taskbar_button.connect('notify::hover', (widget, event) => this._on_taskbar_button_hover(widget, event));
+
                 this._taskbar._box.add_child(taskbar_button);
+            } else {
+                let task_separator = new St.Label({y_align: Clutter.ActorAlign.CENTER, text: '|'});
+                this._taskbar._box.add_child(task_separator);
             }
         });
     }
@@ -316,9 +376,9 @@ class Extension {
 
         this._windows_changed = this._window_tracker.connect('tracked-windows-changed', this._update_taskbar.bind(this));
         this._restacked = global.display.connect('restacked', this._update_taskbar.bind(this));
-        this._installed_changed = this._app_system.connect('installed-changed', this._update_taskbar.bind(this));
         this._app_state_changed = this._app_system.connect('app-state-changed', this._update_taskbar.bind(this));
         this._favorites_changed = AppFavorites.getAppFavorites().connect('changed', this._update_taskbar.bind(this));
+        this._installed_changed = this._app_system.connect('installed-changed', this._update_taskbar.bind(this));
 
         Main.panel.statusArea.appMenu.container.hide();
         this._show_activities(false);
