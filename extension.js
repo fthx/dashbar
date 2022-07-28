@@ -20,7 +20,6 @@ const _ = Gettext.gettext;
 const N_ = x => x;
 
 var PLACES_ICON_NAME = 'folder-symbolic';
-var SHOW_DESKTOP_BUTTON_ICON_NAME = 'video-display-symbolic';
 var SHOW_APPS_BUTTON_ICON_NAME = 'view-app-grid-symbolic';
 var ICON_SIZE = Main.panel.get_height() - 5;
 var RUNNING_APP_OPACITY = 255;
@@ -94,40 +93,6 @@ class TaskBarItem extends St.Bin {
             AppFavorites.getAppFavorites().moveFavoriteToPos(source._app_id, this._index_in_favorites);
         }
         return true;
-    }
-});
-
-var ShowDesktopButton = GObject.registerClass(
-class ShowDesktopButton extends PanelMenu.Button {
-    _init() {
-        super._init();
-        this.set_track_hover(true);
-        this.set_reactive(true);
-
-        this.add_child(new St.Icon({icon_name: SHOW_DESKTOP_BUTTON_ICON_NAME, style_class: 'system-status-icon'}));
-        this.connect('button-release-event', this._activate.bind(this));
-    }
-
-    _activate(widget, event) {
-        if (event.get_button() == 1) {
-            global.workspace_manager.get_active_workspace().list_windows().forEach(window => {
-                if (window && window.can_minimize()) {
-                    window.minimize();
-                }
-            });
-        }
-
-        if (event.get_button() == 2) {
-            // nothing to do with middle click for now
-        }
-
-        if (event.get_button() == 3) {
-            global.workspace_manager.get_active_workspace().list_windows().forEach(window => {
-                if (window) {
-                    window.activate(global.get_current_time());
-                }
-            });
-        }
     }
 });
 
@@ -357,9 +322,6 @@ class Extension {
         this._app_system = Shell.AppSystem.get_default();
         this._window_tracker = Shell.WindowTracker.get_default();
 
-        this._show_desktop_button = new ShowDesktopButton();
-        Main.panel.addToStatusArea("DashBar show-desktop-button", this._show_desktop_button, -1, 'left');
-
         this._show_apps_button = new ShowAppsButton();
         Main.panel.addToStatusArea("DashBar show-app-button", this._show_apps_button, -1, 'left');
 
@@ -387,9 +349,6 @@ class Extension {
     }
 
     disable() {
-        this._show_desktop_button.destroy();
-        this._show_desktop_button = null;
-
         this._show_apps_button.destroy();
         this._show_apps_button = null;
 
