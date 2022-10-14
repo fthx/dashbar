@@ -22,9 +22,8 @@ const N_ = x => x;
 var PLACES_ICON_NAME = 'folder-symbolic';
 var SHOW_APPS_BUTTON_ICON_NAME = 'view-app-grid-symbolic';
 var ICON_SIZE = Main.panel.get_height() - 5;
-var RUNNING_APP_OPACITY = 255;
-var NOTRUNNING_APP_OPACITY = 124;
-
+var APP_NORMAL_OPACITY = 216;
+var APP_LOW_OPACITY = 132;
 
 var TaskBar = GObject.registerClass(
 class TaskBar extends PanelMenu.Button {
@@ -52,7 +51,6 @@ class TaskBar extends PanelMenu.Button {
         if (this._task_menu && this._task_menu_manager) {
             Main.uiGroup.remove_actor(this._task_menu.actor);
             this._task_menu_manager.removeMenu(this._task_menu);
-            this._task_menu.destroy();
         }
 
         this._box.destroy_all_children();
@@ -69,10 +67,10 @@ class TaskBarItem extends St.Bin {
         this.set_reactive(true);
         this.set_can_focus(true);
         this.set_style_class_name('app-notrunning');
-        this.set_opacity(NOTRUNNING_APP_OPACITY);
+        this.set_opacity(APP_NORMAL_OPACITY);
 
         this._delegate = this;
-        this._draggable = DND.makeDraggable(this, {dragActorOpacity: 255});
+        this._draggable = DND.makeDraggable(this, {dragActorOpacity: APP_LOW_OPACITY});
         this._draggable.connect('drag-end', this._on_drag_end.bind(this));
         this._draggable.connect('drag-cancelled', this._on_drag_cancelled.bind(this));
 
@@ -181,32 +179,18 @@ class Extension {
 
     _on_taskbar_button_hover(widget) {
         if (widget.get_hover()) {
-            switch (widget.get_style_class_name()) {
-                case 'app-running-focused':
-                case 'app-running-unfocused':
+            widget.ease({
+                duration: 100,
+                opacity: APP_LOW_OPACITY,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                onComplete: () => {
                     widget.ease({
                         duration: 100,
-                        opacity: NOTRUNNING_APP_OPACITY,
-                        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                        onComplete: () => {
-                            widget.ease({
-                                duration: 100,
-                                opacity: RUNNING_APP_OPACITY,
-                                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                            });
-                        },
-                    });
-                    break;
-                case 'app-notrunning':
-                    widget.ease({
-                        duration: 200,
-                        opacity: RUNNING_APP_OPACITY,
+                        opacity: APP_NORMAL_OPACITY,
                         mode: Clutter.AnimationMode.EASE_OUT_QUAD,
                     });
-                    break;
-            }
-        } else {
-            this._update_app_states();
+                },
+            });
         }
     }
 
@@ -275,16 +259,16 @@ class Extension {
 
     _update_app_states() {
         this._taskbar._box.get_children().forEach(button => {
-            if (button._app && button._app.state == Shell.AppState.RUNNING) {
-                if (button._app == this._window_tracker.focus_app) {
-                    button.set_style_class_name('app-running-focused');
-                } else {
-                    button.set_style_class_name('app-running-unfocused');
+            if (button._app) {
+                if (button._app.state == Shell.AppState.RUNNING && this._is_on_active_workspace(button._app)) {
+                    button.set_style_class_name('app-running-on-current-workspace');
                 }
-                button.set_opacity(RUNNING_APP_OPACITY);
-            } else {
-                button.set_style_class_name('app-notrunning');
-                button.set_opacity(NOTRUNNING_APP_OPACITY);
+                if (button._app.state == Shell.AppState.RUNNING && !this._is_on_active_workspace(button._app)) {
+                    button.set_style_class_name('app-running-noton-current-workspace');
+                }
+                if (button._app.state != Shell.AppState.RUNNING) {
+                    button.set_style_class_name('app-notrunning');
+                }
             }
         });
     }

@@ -1,22 +1,22 @@
-.app-running-focused {
+.app-running-on-current-workspace {
   margin-left: 2px;
   margin-right: 2px;
   margin-top: 1px;
   margin-bottom: 2px;
 
-  border-top: 2px solid rgba(204, 204, 204, 1);
+  border-top: 2px solid rgba(255, 255, 255, 1);
   border-right: 0px hidden;
   border-bottom: 0px hidden;
   border-left: 0px hidden;
 }
 
-.app-running-unfocused {
+.app-running-noton-current-workspace {
   margin-left: 2px;
   margin-right: 2px;
   margin-top: 1px;
   margin-bottom: 2px;
 
-  border-top: 2px solid rgba(204, 204, 204, 0);
+  border-top: 2px solid rgba(255, 255, 255, 0.6);
   border-right: 0px hidden;
   border-bottom: 0px hidden;
   border-left: 0px hidden;
@@ -28,7 +28,7 @@
   margin-top: 1px;
   margin-bottom: 2px;
 
-  border-top: 2px solid rgba(204, 204, 204, 0);
+  border-top: 2px solid rgba(255, 255, 255, 0);
   border-right: 0px hidden;
   border-bottom: 0px hidden;
   border-left: 0px hidden;
