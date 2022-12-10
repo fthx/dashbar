@@ -21,7 +21,8 @@ const N_ = x => x;
 
 var PLACES_ICON_NAME = 'folder-symbolic';
 var SHOW_APPS_BUTTON_ICON_NAME = 'view-app-grid-symbolic';
-var ICON_SIZE = Main.panel.get_height() - 5;
+var SCALING = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+var ICON_SIZE = Math.floor((Main.panel.get_height() - 5) / SCALING);
 var APP_NORMAL_OPACITY = 216;
 var APP_LOW_OPACITY = 132;
 

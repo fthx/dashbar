@@ -1,35 +1,29 @@
 .app-running-on-current-workspace {
-  margin-left: 2px;
-  margin-right: 2px;
-  margin-top: 1px;
-  margin-bottom: 2px;
+  margin-left: 1px;
+  margin-right: 1px;
 
   border-top: 2px solid rgba(255, 255, 255, 1);
-  border-right: 0px hidden;
-  border-bottom: 0px hidden;
-  border-left: 0px hidden;
+
+  padding-top: 1px;
+  padding-bottom: 2px;
 }
 
 .app-running-noton-current-workspace {
-  margin-left: 2px;
-  margin-right: 2px;
-  margin-top: 1px;
-  margin-bottom: 2px;
+  margin-left: 1px;
+  margin-right: 1px;
 
   border-top: 2px solid rgba(255, 255, 255, 0.6);
-  border-right: 0px hidden;
-  border-bottom: 0px hidden;
-  border-left: 0px hidden;
+
+  padding-top: 1px;
+  padding-bottom: 2px;
 }
 
 .app-notrunning {
-  margin-left: 2px;
-  margin-right: 2px;
-  margin-top: 1px;
-  margin-bottom: 2px;
+  margin-left: 1px;
+  margin-right: 1px;
 
   border-top: 2px solid rgba(255, 255, 255, 0);
-  border-right: 0px hidden;
-  border-bottom: 0px hidden;
-  border-left: 0px hidden;
+
+  padding-top: 1px;
+  padding-bottom: 2px;
 }
