@@ -4,7 +4,8 @@
   "name": "DashBar",
   "shell-version": [
     "42",
-    "43"
+    "43",
+    "44"
   ],
   "url": "https://github.com/fthx/dashbar",
   "uuid": "dashbar@fthx",
