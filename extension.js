@@ -1,35 +1,40 @@
 /*
-    DashBar for GNOME Shell 42+
-    (c) Francois Thirioux 2022
+    DashBar for GNOME Shell 45+
+    (c) Francois Thirioux 2023
     Contributors: @fthx
     License GPL v3
 */
 
 
-const { Clutter, GObject, Meta, Shell, St } = imports.gi;
+import Clutter from 'gi://Clutter';
+import GObject from 'gi://GObject';
+import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
+import St from 'gi://St';
 
-const Main = imports.ui.main;
-const PanelMenu = imports.ui.panelMenu;
-const AppFavorites = imports.ui.appFavorites;
-const AppMenu = imports.ui.appMenu;
-const PopupMenu = imports.ui.popupMenu;
-const DND = imports.ui.dnd;
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
+import * as AppMenu from 'resource:///org/gnome/shell/ui/appMenu.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
 
-const Gettext = imports.gettext.domain('gnome-shell-extensions');
-const _ = Gettext.gettext;
+import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 const N_ = x => x;
 
-var PLACES_ICON_NAME = 'folder-symbolic';
-var SHOW_APPS_BUTTON_ICON_NAME = 'view-app-grid-symbolic';
-var SCALING = St.ThemeContext.get_for_stage(global.stage).scale_factor;
-var ICON_SIZE = Math.floor((Main.panel.get_height() - 5) / SCALING);
-var APP_NORMAL_OPACITY = 216;
-var APP_LOW_OPACITY = 132;
+const PLACES_ICON_NAME = 'folder-symbolic';
+const APPGRID_ICON_NAME = 'view-app-grid-symbolic';
+const SCALING = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+const ICON_SIZE = Math.floor((Main.panel.height - 8) / SCALING);
+const APP_NORMAL_OPACITY = 216;
+const APP_LOW_OPACITY = 132;
 
-var TaskBar = GObject.registerClass(
+
+const TaskBar = GObject.registerClass(
 class TaskBar extends PanelMenu.Button {
     _init() {
         super._init();
+
         this.set_track_hover(false);
         this.set_reactive(false);
         this.set_can_focus(false);
@@ -60,10 +65,11 @@ class TaskBar extends PanelMenu.Button {
     }
 });
 
-var TaskBarItem = GObject.registerClass(
+const TaskBarItem = GObject.registerClass(
 class TaskBarItem extends St.Bin {
     _init() {
         super._init();
+
         this.set_track_hover(true);
         this.set_reactive(true);
         this.set_can_focus(true);
@@ -95,50 +101,32 @@ class TaskBarItem extends St.Bin {
     }
 });
 
-var WorkspaceButton = GObject.registerClass(
-class WorkspaceButton extends PanelMenu.Button {
+const AppGridButton = GObject.registerClass(
+class AppGridButton extends PanelMenu.Button {
     _init() {
         super._init();
+
         this.set_track_hover(true);
         this.set_reactive(true);
         this.set_can_focus(true);
 
-        this.add_child(new St.Label({text: "   1   ", y_align: Clutter.ActorAlign.CENTER, style_class: 'workspace-button'}));
+        this.add_child(new St.Icon({icon_name: APPGRID_ICON_NAME, style_class: 'system-status-icon'}));
         this.connect('button-release-event', this._activate.bind(this));
     }
 
     _activate(widget, event) {
-        if (event.get_button() == 1) {
-            Main.overview.toggle();
-        }
-
-        if (event.get_button() == 2) {
-            // nothing to do with middle click for now
-        }
-
-        if (event.get_button() == 3) {
-            if (Main.overview.visible) {
-                Main.overview.hide();
-            } else {
-                Main.overview.showApps();
-            }
+        if (Main.overview.visible) {
+            this._showapps_button_checked = Main.overview.dash.showAppsButton.checked;
+            Main.overview.dash.showAppsButton.checked = !this._showapps_button_checked;
+        } else {
+            Main.overview.showApps();
         }
     }
 });
 
-class Extension {
-    constructor() {
-    }
-
-    _show_activities(show) {
-        this._activities_button = Main.panel.statusArea['activities'];
-        if (this._activities_button) {
-            if (show && !Main.sessionMode.isLocked) {
-                this._activities_button.container.show();
-            } else {
-                this._activities_button.container.hide();
-            }
-        }
+export default class DashBarExtension extends Extension {
+    constructor(metadata) {
+        super(metadata);
     }
 
     _show_places_icon(show) {
@@ -155,14 +143,6 @@ class Extension {
         }
     }
 
-    _show_dash(show) {
-        if (show) {
-            Main.overview.dash.show();
-        } else {
-            Main.overview.dash.hide();
-        }
-    }
-
     _has_to_be_counted(window) {
         return [Meta.WindowType.NORMAL, Meta.WindowType.DIALOG].includes(window.get_window_type())
             && !window.is_override_redirect()
@@ -174,15 +154,15 @@ class Extension {
     }
 
     _on_taskbar_scroll(origin, event) {
-        this.active_workspace = global.workspace_manager.get_active_workspace();
+        this._active_workspace = global.workspace_manager.get_active_workspace();
         switch(event.get_scroll_direction()) {
             case Clutter.ScrollDirection.DOWN:
             case Clutter.ScrollDirection.RIGHT:
-                this.active_workspace.get_neighbor(Meta.MotionDirection.RIGHT).activate(event.get_time());
+                this._active_workspace.get_neighbor(Meta.MotionDirection.RIGHT).activate(event.get_time());
                 break;
             case Clutter.ScrollDirection.UP:
             case Clutter.ScrollDirection.LEFT:
-                this.active_workspace.get_neighbor(Meta.MotionDirection.LEFT).activate(event.get_time());
+                this._active_workspace.get_neighbor(Meta.MotionDirection.LEFT).activate(event.get_time());
                 break;
         }
     }
@@ -223,9 +203,11 @@ class Extension {
             }
         }
 
-        if (event.get_button() == 2 && app.can_open_new_window()) {
+        if (event.get_button() == 2) {
             Main.overview.hide();
-            app.open_new_window(-1);
+            if (app.can_open_new_window()) {
+                app.open_new_window(-1);
+            }
         }
 
         if (event.get_button() == 3) {
@@ -238,11 +220,6 @@ class Extension {
         }
     }
 
-    _update_workspace_button() {
-        this.active_workspace_index = global.workspace_manager.get_active_workspace_index();
-        this._workspace_button.get_first_child().set_text("   " + (this.active_workspace_index + 1) + "   ");
-    }
-
     _update_taskbar_items() {
         this._taskbar._box.destroy_all_children();
         Main.overview.dash._redisplay();
@@ -250,22 +227,28 @@ class Extension {
         this._dash_items = Main.overview.dash._dashContainer.get_first_child().get_children();
         this._dash_items.forEach(item => {
             if (item.child && item.child.app) {
-                let app_id = item.child._id;
-                let app = item.child.app;
+                if (!this._show_only_running_apps || item.child.app.state == Shell.AppState.RUNNING) {
+                    let app_id = item.child._id;
+                    let app = item.child.app;
 
-                let taskbar_button = new TaskBarItem();
-                taskbar_button._app = app;
-                taskbar_button._app_id = app_id;
+                    if (!this._show_only_active_workspace_apps || this._is_on_active_workspace(app)) {
+                        let taskbar_button = new TaskBarItem();
+                        taskbar_button._app = app;
+                        taskbar_button._app_id = app_id;
 
-                let app_icon = app.create_icon_texture(ICON_SIZE);
-                taskbar_button.set_child(app_icon);
-                this._taskbar._box.add_child(taskbar_button);
+                        let app_icon = app.create_icon_texture(ICON_SIZE);
+                        taskbar_button.set_child(app_icon);
+                        this._taskbar._box.add_child(taskbar_button);
 
-                taskbar_button.connect('button-release-event', (widget, event) => this._activate(widget, event, app));
-                taskbar_button.connect('notify::hover', (widget, event) => this._on_taskbar_button_hover(widget, event));
+                        taskbar_button.connect('button-release-event', (widget, event) => this._activate(widget, event, app));
+                        taskbar_button.connect('notify::hover', (widget, event) => this._on_taskbar_button_hover(widget, event));
+                    }
+                }
             } else {
-                let task_separator = new St.Label({y_align: Clutter.ActorAlign.CENTER, text: '|'});
-                this._taskbar._box.add_child(task_separator);
+                if (!this._show_only_running_apps) {
+                    let task_separator = new St.Label({y_align: Clutter.ActorAlign.CENTER, text: '|'});
+                    this._taskbar._box.add_child(task_separator);
+                }
             }
         });
 
@@ -275,17 +258,34 @@ class Extension {
     _update_app_states() {
         this._taskbar._box.get_children().forEach(button => {
             if (button._app) {
-                if (button._app.state == Shell.AppState.RUNNING && this._is_on_active_workspace(button._app)) {
-                    button.set_style_class_name('app-running-on-current-workspace');
-                }
-                if (button._app.state == Shell.AppState.RUNNING && !this._is_on_active_workspace(button._app)) {
-                    button.set_style_class_name('app-running-noton-current-workspace');
-                }
-                if (button._app.state != Shell.AppState.RUNNING) {
-                    button.set_style_class_name('app-notrunning');
+                if (!this._show_only_running_apps) {
+                    if (button._app.state == Shell.AppState.RUNNING && this._is_on_active_workspace(button._app)) {
+                        button.set_style_class_name('app-running-on-current-workspace');
+                    }
+                    if (button._app.state == Shell.AppState.RUNNING && !this._is_on_active_workspace(button._app)) {
+                        button.set_style_class_name('app-running-noton-current-workspace');
+                    }
+                    if (button._app.state != Shell.AppState.RUNNING) {
+                        button.set_style_class_name('app-notrunning');
+                    }
+                } else {
+                    if (this._window_tracker.focus_app == button._app) {
+                        button.set_style_class_name('app-running-on-current-workspace');
+                    } else {
+                        button.set_style_class_name('app-notrunning');
+                    }
                 }
             }
         });
+    }
+
+    _on_settings_changed() {
+        this._appgrid_button.visible = this._settings.get_boolean('show-appgrid');
+
+        this._show_only_running_apps = this._settings.get_boolean('show-only-running-apps');
+        this._show_only_active_workspace_apps = this._settings.get_boolean('show-only-active-workspace-apps');
+
+        this._update_taskbar_items();
     }
 
     _destroy_signals() {
@@ -294,11 +294,11 @@ class Extension {
             this._startup_complete = null;
         }
 
+
         if (this._active_workspace_changed) {
             global.workspace_manager.disconnect(this._active_workspace_changed);
             this._active_workspace_changed = null;
         }
-
         if (this._focus_app_changed) {
             this._window_tracker.disconnect(this._focus_app_changed);
             this._focus_app_changed = null;
@@ -320,62 +320,56 @@ class Extension {
             Main.extensionManager.disconnect(this._extensions_changed);
             this._extensions_changed = null;
         }
+
+        if (this._settings_changed) {
+            this._settings.disconnect(this._settings_changed);
+        }
+        this._settings_changed = null;
     }
 
     enable() {
+        this._settings = this.getSettings();
+        this._settings_changed = this._settings.connect('changed', this._on_settings_changed.bind(this));
+
         this._app_system = Shell.AppSystem.get_default();
         this._window_tracker = Shell.WindowTracker.get_default();
 
-        this._workspace_button = new WorkspaceButton();
-        Main.panel.addToStatusArea("DashBar workspace-button", this._workspace_button, -1, 'left');
-        this._workspace_button.connect('scroll-event', this._on_taskbar_scroll.bind(this));
+        this._appgrid_button = new AppGridButton();
+        Main.panel.addToStatusArea("DashBar appgrid-button", this._appgrid_button, -1, 'left');
 
         this._taskbar = new TaskBar();
-        this._update_taskbar_items();
         Main.panel.addToStatusArea("DashBar taskbar", this._taskbar, -1, 'left');
         this._taskbar._box.connect('scroll-event', this._on_taskbar_scroll.bind(this));
 
-        this._active_workspace_changed = global.workspace_manager.connect('active-workspace-changed', this._update_workspace_button.bind(this));
+        this._on_settings_changed();
 
+        this._active_workspace_changed = global.workspace_manager.connect('active-workspace-changed', this._update_taskbar_items.bind(this));
         this._focus_app_changed = this._window_tracker.connect('notify::focus-app', this._update_app_states.bind(this));
         this._app_state_changed = this._app_system.connect('app-state-changed', this._update_taskbar_items.bind(this));
         this._installed_changed = this._app_system.connect('installed-changed', this._update_taskbar_items.bind(this));
         this._favorites_changed = AppFavorites.getAppFavorites().connect('changed', this._update_taskbar_items.bind(this));
 
-        Main.panel.statusArea.appMenu.container.hide();
-        this._show_activities(false);
         this._show_places_icon(true);
-        this._show_dash(false);
         this._extensions_changed = Main.extensionManager.connect('extension-state-changed', () => this._show_places_icon(true));
 
         this._startup_complete = Main.layoutManager.connect('startup-complete', () => {
             Main.overview.hide();
-            this._show_activities(false);
             this._show_places_icon(true);
-            this._show_dash(false);
-            this._update_workspace_button();
             this._update_taskbar_items();
         });
     }
 
     disable() {
-        this._workspace_button.destroy();
-        this._workspace_button = null;
+        this._appgrid_button.destroy();
+        this._appgrid_button = null;
 
         this._taskbar._destroy();
         this._taskbar = null;
 
         this._destroy_signals();
 
-        if (!Main.overview.visible && !Main.sessionMode.isLocked) {
-            Main.panel.statusArea.appMenu.container.show();
-        }
-        this._show_activities(true);
         this._show_places_icon(false);
-        this._show_dash(true);
-    }
-}
 
-function init() {
-    return new Extension();
+        this._settings = null;
+    }
 }

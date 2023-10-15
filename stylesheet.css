@@ -1,19 +1,6 @@
-.workspace-button {
-  margin-top: 3px;
-  margin-bottom: 2px;
+.app-running-on-current-workspace {
   margin-left: 2px;
   margin-right: 2px;
-
-  border: 1px solid rgba(0, 0, 0, 0.7);
-  border-radius: 4px;
-
-  background-color: rgba(204, 204, 204, 1);
-  color: rgba(0, 0, 0, 1);
-}
-
-.app-running-on-current-workspace {
-  margin-left: 1px;
-  margin-right: 1px;
 
   border-top: 2px solid rgba(255, 255, 255, 1);
 
@@ -22,8 +9,8 @@
 }
 
 .app-running-noton-current-workspace {
-  margin-left: 1px;
-  margin-right: 1px;
+  margin-left: 2px;
+  margin-right: 2px;
 
   border-top: 2px solid rgba(255, 255, 255, 0.6);
 
@@ -32,8 +19,8 @@
 }
 
 .app-notrunning {
-  margin-left: 1px;
-  margin-right: 1px;
+  margin-left: 2px;
+  margin-right: 2px;
 
   border-top: 2px solid rgba(255, 255, 255, 0);
 
