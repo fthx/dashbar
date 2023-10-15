@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<schemalist>
+    <schema path="/org/gnome/shell/extensions/dashbar/" id="org.gnome.shell.extensions.dashbar">
+
+    <key type="b" name="show-appgrid">
+        <default>true</default>
+        <summary>Show app grid button</summary>
+    </key>
+
+    <key type="b" name="show-only-running-apps">
+        <default>false</default>
+        <summary>Show only running apps</summary>
+    </key>
+
+    <key type="b" name="show-only-active-workspace-apps">
+        <default>false</default>
+        <summary>Show only apps in active workspace</summary>
+    </key>
+
+    </schema>
+</schemalist>
