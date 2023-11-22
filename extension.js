@@ -24,8 +24,6 @@ const N_ = x => x;
 
 const PLACES_ICON_NAME = 'folder-symbolic';
 const APPGRID_ICON_NAME = 'view-app-grid-symbolic';
-const SCALING = St.ThemeContext.get_for_stage(global.stage).scale_factor;
-const ICON_SIZE = Math.floor((Main.panel.height - 8) / SCALING);
 const APP_NORMAL_OPACITY = 216;
 const APP_LOW_OPACITY = 132;
 
@@ -78,8 +76,8 @@ class TaskBarItem extends St.Bin {
 
         this._delegate = this;
         this._draggable = DND.makeDraggable(this, {dragActorOpacity: APP_LOW_OPACITY});
-        this._draggable.connect('drag-end', this._on_drag_end.bind(this));
-        this._draggable.connect('drag-cancelled', this._on_drag_cancelled.bind(this));
+        this._draggable.connectObject('drag-end', this._on_drag_end.bind(this), this);
+        this._draggable.connectObject('drag-cancelled', this._on_drag_cancelled.bind(this), this);
 
         this._app_id = null;
     }
@@ -111,7 +109,7 @@ class AppGridButton extends PanelMenu.Button {
         this.set_can_focus(true);
 
         this.add_child(new St.Icon({icon_name: APPGRID_ICON_NAME, style_class: 'system-status-icon'}));
-        this.connect('button-release-event', this._activate.bind(this));
+        this.connectObject('button-release-event', this._activate.bind(this), this);
     }
 
     _activate(widget, event) {
@@ -236,12 +234,12 @@ export default class DashBarExtension extends Extension {
                         taskbar_button._app = app;
                         taskbar_button._app_id = app_id;
 
-                        let app_icon = app.create_icon_texture(ICON_SIZE);
+                        let app_icon = app.create_icon_texture(this._app_icon_size);
                         taskbar_button.set_child(app_icon);
                         this._taskbar._box.add_child(taskbar_button);
 
-                        taskbar_button.connect('button-release-event', (widget, event) => this._activate(widget, event, app));
-                        taskbar_button.connect('notify::hover', (widget, event) => this._on_taskbar_button_hover(widget, event));
+                        taskbar_button.connectObject('button-release-event', (widget, event) => this._activate(widget, event, app), this);
+                        taskbar_button.connectObject('notify::hover', (widget, event) => this._on_taskbar_button_hover(widget, event), this);
                     }
                 }
             } else {
@@ -285,51 +283,25 @@ export default class DashBarExtension extends Extension {
         this._show_only_running_apps = this._settings.get_boolean('show-only-running-apps');
         this._show_only_active_workspace_apps = this._settings.get_boolean('show-only-active-workspace-apps');
 
+        this._app_icon_size = this._settings.get_int('icon-size');
+
         this._update_taskbar_items();
     }
 
     _destroy_signals() {
-        if (this._startup_complete) {
-            Main.layoutManager.disconnect(this._startup_complete);
-            this._startup_complete = null;
-        }
-
-
-        if (this._active_workspace_changed) {
-            global.workspace_manager.disconnect(this._active_workspace_changed);
-            this._active_workspace_changed = null;
-        }
-        if (this._focus_app_changed) {
-            this._window_tracker.disconnect(this._focus_app_changed);
-            this._focus_app_changed = null;
-        }
-        if (this._app_state_changed) {
-            this._app_system.disconnect(this._app_state_changed);
-            this._app_state_changed = null;
-        }
-        if (this._favorites_changed) {
-            AppFavorites.getAppFavorites().disconnect(this._favorites_changed);
-            this._favorites_changed = null;
-        }
-        if (this._installed_changed) {
-            this._app_system.disconnect(this._installed_changed);
-            this._installed_changed = null;
-        }
-
-        if (this._extensions_changed) {
-            Main.extensionManager.disconnect(this._extensions_changed);
-            this._extensions_changed = null;
-        }
-
-        if (this._settings_changed) {
-            this._settings.disconnect(this._settings_changed);
-        }
-        this._settings_changed = null;
+            Main.layoutManager.disconnectObject(this);
+            global.workspace_manager.disconnectObject(this);
+            this._window_tracker.disconnectObject(this);
+            this._app_system.disconnectObject(this);
+            AppFavorites.getAppFavorites().disconnectObject(this);
+            this._app_system.disconnectObject(this);
+            Main.extensionManager.disconnectObject(this);
+            this._settings.disconnectObject(this);
     }
 
     enable() {
         this._settings = this.getSettings();
-        this._settings_changed = this._settings.connect('changed', this._on_settings_changed.bind(this));
+        this._settings.connectObject('changed', this._on_settings_changed.bind(this), this);
 
         this._app_system = Shell.AppSystem.get_default();
         this._window_tracker = Shell.WindowTracker.get_default();
@@ -339,20 +311,20 @@ export default class DashBarExtension extends Extension {
 
         this._taskbar = new TaskBar();
         Main.panel.addToStatusArea("DashBar taskbar", this._taskbar, -1, 'left');
-        this._taskbar._box.connect('scroll-event', this._on_taskbar_scroll.bind(this));
+        this._taskbar._box.connectObject('scroll-event', this._on_taskbar_scroll.bind(this), this);
 
         this._on_settings_changed();
 
-        this._active_workspace_changed = global.workspace_manager.connect('active-workspace-changed', this._update_taskbar_items.bind(this));
-        this._focus_app_changed = this._window_tracker.connect('notify::focus-app', this._update_app_states.bind(this));
-        this._app_state_changed = this._app_system.connect('app-state-changed', this._update_taskbar_items.bind(this));
-        this._installed_changed = this._app_system.connect('installed-changed', this._update_taskbar_items.bind(this));
-        this._favorites_changed = AppFavorites.getAppFavorites().connect('changed', this._update_taskbar_items.bind(this));
+        global.workspace_manager.connectObject('active-workspace-changed', this._update_taskbar_items.bind(this), this);
+        this._window_tracker.connectObject('notify::focus-app', this._update_app_states.bind(this), this);
+        this._app_system.connectObject('app-state-changed', this._update_taskbar_items.bind(this), this);
+        this._app_system.connectObject('installed-changed', this._update_taskbar_items.bind(this), this);
+        AppFavorites.getAppFavorites().connectObject('changed', this._update_taskbar_items.bind(this), this);
 
         this._show_places_icon(true);
-        this._extensions_changed = Main.extensionManager.connect('extension-state-changed', () => this._show_places_icon(true));
+        Main.extensionManager.connectObject('extension-state-changed', () => this._show_places_icon(true), this);
 
-        this._startup_complete = Main.layoutManager.connect('startup-complete', () => {
+        Main.layoutManager.connectObject('startup-complete', () => {
             Main.overview.hide();
             this._show_places_icon(true);
             this._update_taskbar_items();
